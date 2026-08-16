@@ -47,36 +47,91 @@ def get_inventory_risk():
 
         current_stock = int(row["current_stock"])
         reorder_level = int(row["reorder_level"])
+        total_units_sold_30_days = int(row["total_units_sold_30_days"])
 
-        total_units_sold_30_days = int(
-            row["total_units_sold_30_days"]
-        )
-
-        # Exactly 30 calendar days.
         avg_daily_sales = total_units_sold_30_days / 30.0
 
-        # If there are no sales, stockout cannot be estimated
-        # from sales velocity.
         if avg_daily_sales > 0:
             estimated_days = current_stock / avg_daily_sales
         else:
             estimated_days = None
 
-        # Risk classification
+        # ----------------------------------------------------
+        # RISK CLASSIFICATION
+        # ----------------------------------------------------
+
         if current_stock == 0:
             risk = "critical"
+            risk_score = 100
 
         elif estimated_days is not None and estimated_days <= 7:
             risk = "high"
+            risk_score = max(
+                75,
+                min(99, round(100 - (estimated_days / 7) * 25))
+            )
 
         elif estimated_days is not None and estimated_days <= 14:
             risk = "medium"
+            risk_score = max(
+                50,
+                min(74, round(75 - ((estimated_days - 7) / 7) * 25))
+            )
 
         elif current_stock <= reorder_level:
             risk = "medium"
+            risk_score = 60
 
         else:
             risk = "low"
+
+            if avg_daily_sales > 0 and estimated_days is not None:
+                risk_score = max(
+                    1,
+                    min(49, round(50 - min(estimated_days, 50)))
+                )
+            else:
+                risk_score = 5
+
+        # ----------------------------------------------------
+        # STOCK COVERAGE
+        # ----------------------------------------------------
+
+        if estimated_days is None:
+            stock_coverage = "No sales velocity"
+        elif estimated_days <= 7:
+            stock_coverage = "Critical"
+        elif estimated_days <= 14:
+            stock_coverage = "Low"
+        elif estimated_days <= 30:
+            stock_coverage = "Healthy"
+        else:
+            stock_coverage = "Overstocked"
+
+        # ----------------------------------------------------
+        # REORDER RECOMMENDATION
+        # Target = approximately 30 days of demand, but never
+        # below the configured reorder level.
+        # ----------------------------------------------------
+
+        target_stock = max(
+            reorder_level,
+            round(avg_daily_sales * 30)
+        )
+
+        recommended_reorder_qty = max(
+            0,
+            target_stock - current_stock
+        )
+
+        if current_stock == 0:
+            urgency = "Immediate"
+        elif estimated_days is not None and estimated_days <= 7:
+            urgency = "Within 7 days"
+        elif current_stock <= reorder_level:
+            urgency = "Reorder soon"
+        else:
+            urgency = "Monitor"
 
         results.append(
             {
@@ -92,6 +147,11 @@ def get_inventory_risk():
                     else None
                 ),
                 "risk": risk,
+                "risk_score": int(risk_score),
+                "stock_coverage": stock_coverage,
+                "target_stock": int(target_stock),
+                "recommended_reorder_qty": int(recommended_reorder_qty),
+                "urgency": urgency,
             }
         )
 

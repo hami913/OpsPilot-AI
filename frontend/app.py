@@ -818,7 +818,7 @@ elif page == "Sales Analytics":
 elif page == "Inventory & Risk":
 
     st.markdown(
-        '<div class="section-title">Inventory Intelligence</div>',
+        '<div class="section-title">Inventory Risk Command Center</div>',
         unsafe_allow_html=True,
     )
 
@@ -828,31 +828,70 @@ elif page == "Inventory & Risk":
         st.warning("No inventory risk data available.")
         st.stop()
 
-    critical_df = risk_df[risk_df["risk"] == "critical"]
-    high_df = risk_df[risk_df["risk"] == "high"]
-    medium_df = risk_df[risk_df["risk"] == "medium"]
-    low_df = risk_df[risk_df["risk"] == "low"]
+    # --------------------------------------------------------
+    # RISK SEGMENTS
+    # --------------------------------------------------------
+
+    critical_df = risk_df[risk_df["risk"] == "critical"].copy()
+    high_df = risk_df[risk_df["risk"] == "high"].copy()
+    medium_df = risk_df[risk_df["risk"] == "medium"].copy()
+    low_df = risk_df[risk_df["risk"] == "low"].copy()
 
     critical = len(critical_df)
     high = len(high_df)
     medium = len(medium_df)
     low = len(low_df)
 
+    total_products = len(risk_df)
+    risk_products = critical + high + medium
+
+    reorder_df = risk_df[
+        risk_df["current_stock"] <= risk_df["reorder_level"]
+    ].copy()
+
+    total_reorder_units = int(
+        reorder_df["recommended_reorder_qty"].sum()
+    ) if not reorder_df.empty else 0
+
+    avg_risk_score = round(
+        risk_df["risk_score"].mean(),
+        1
+    )
+
     # --------------------------------------------------------
-    # RISK KPI CARDS
+    # KPI CARDS
     # --------------------------------------------------------
 
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric("Critical Risk", critical, "Immediate action")
-    c2.metric("High Risk", high, "Priority action")
-    c3.metric("Medium Risk", medium, "Monitor")
-    c4.metric("Low Risk", low, "Healthy")
+    c1.metric(
+        "Critical Risk",
+        f"{critical:,}",
+        "Immediate action",
+    )
+
+    c2.metric(
+        "High Risk",
+        f"{high:,}",
+        "Priority action",
+    )
+
+    c3.metric(
+        "Products at Risk",
+        f"{risk_products:,}",
+        f"{(risk_products / total_products * 100):.1f}% of inventory",
+    )
+
+    c4.metric(
+        "Risk Score",
+        f"{avg_risk_score:.1f}/100",
+        "Higher = more risk",
+    )
 
     st.write("")
 
     # --------------------------------------------------------
-    # RISK DISTRIBUTION + SUMMARY
+    # RISK DISTRIBUTION + INVENTORY SUMMARY
     # --------------------------------------------------------
 
     left, right = st.columns(2)
@@ -881,7 +920,10 @@ elif page == "Inventory & Risk":
                     sort=["Critical", "High", "Medium", "Low"],
                     title=None,
                 ),
-                tooltip=["Risk", "Products"],
+                tooltip=[
+                    alt.Tooltip("Risk:N"),
+                    alt.Tooltip("Products:Q"),
+                ],
             )
             .properties(height=300)
         )
@@ -894,7 +936,7 @@ elif page == "Inventory & Risk":
     with right:
 
         st.markdown(
-            '<div class="section-title">Inventory Summary</div>',
+            '<div class="section-title">Inventory Health</div>',
             unsafe_allow_html=True,
         )
 
@@ -925,16 +967,17 @@ elif page == "Inventory & Risk":
         )
 
         st.info(
-            f"{critical} products require immediate attention "
-            f"and {high} additional products have high stockout risk."
+            f"{critical} products are critical, "
+            f"{high} are high risk, and "
+            f"{total_reorder_units:,} units are recommended for reorder."
         )
 
     # --------------------------------------------------------
-    # CRITICAL PRODUCTS
+    # IMMEDIATE ACTION
     # --------------------------------------------------------
 
     st.markdown(
-        '<div class="section-title">?? Immediate Action Required</div>',
+        '<div class="section-title">Immediate Action Required</div>',
         unsafe_allow_html=True,
     )
 
@@ -943,27 +986,28 @@ elif page == "Inventory & Risk":
             "product_name",
             "category",
             "current_stock",
-            "reorder_level",
             "avg_daily_sales",
             "estimated_days_until_stockout",
-            "risk",
+            "risk_score",
+            "urgency",
         ]
     ].copy()
 
     if not critical_display.empty:
 
         critical_display = critical_display.sort_values(
-            by="estimated_days_until_stockout"
+            by="estimated_days_until_stockout",
+            na_position="first",
         )
 
         critical_display.columns = [
             "Product",
             "Category",
             "Current Stock",
-            "Reorder Level",
             "Avg Daily Sales",
             "Days Until Stockout",
-            "Risk",
+            "Risk Score",
+            "Urgency",
         ]
 
         st.dataframe(
@@ -976,11 +1020,11 @@ elif page == "Inventory & Risk":
         st.success("No critical inventory risks detected.")
 
     # --------------------------------------------------------
-    # HIGH RISK PRODUCTS
+    # HIGH RISK
     # --------------------------------------------------------
 
     st.markdown(
-        '<div class="section-title">?? High Risk Products</div>',
+        '<div class="section-title">High Risk Products</div>',
         unsafe_allow_html=True,
     )
 
@@ -992,14 +1036,16 @@ elif page == "Inventory & Risk":
             "reorder_level",
             "avg_daily_sales",
             "estimated_days_until_stockout",
-            "risk",
+            "risk_score",
+            "urgency",
         ]
     ].copy()
 
     if not high_display.empty:
 
         high_display = high_display.sort_values(
-            by="estimated_days_until_stockout"
+            by="estimated_days_until_stockout",
+            na_position="first",
         )
 
         high_display.columns = [
@@ -1009,7 +1055,8 @@ elif page == "Inventory & Risk":
             "Reorder Level",
             "Avg Daily Sales",
             "Days Until Stockout",
-            "Risk",
+            "Risk Score",
+            "Urgency",
         ]
 
         st.dataframe(
@@ -1026,24 +1073,11 @@ elif page == "Inventory & Risk":
     # --------------------------------------------------------
 
     st.markdown(
-        '<div class="section-title">?? Reorder Recommendations</div>',
+        '<div class="section-title">Reorder Recommendations</div>',
         unsafe_allow_html=True,
     )
 
-    reorder_df = risk_df[
-        risk_df["current_stock"] <= risk_df["reorder_level"]
-    ].copy()
-
     if not reorder_df.empty:
-
-        reorder_df["recommended_order_qty"] = (
-            reorder_df["reorder_level"]
-            - reorder_df["current_stock"]
-        )
-
-        reorder_df = reorder_df.sort_values(
-            by=["risk", "estimated_days_until_stockout"]
-        )
 
         reorder_display = reorder_df[
             [
@@ -1051,18 +1085,27 @@ elif page == "Inventory & Risk":
                 "category",
                 "current_stock",
                 "reorder_level",
-                "recommended_order_qty",
-                "risk",
+                "avg_daily_sales",
+                "target_stock",
+                "recommended_reorder_qty",
+                "urgency",
             ]
         ].copy()
+
+        reorder_display = reorder_display.sort_values(
+            by="recommended_reorder_qty",
+            ascending=False,
+        )
 
         reorder_display.columns = [
             "Product",
             "Category",
             "Current Stock",
             "Reorder Level",
-            "Recommended Reorder Qty",
-            "Risk",
+            "Avg Daily Sales",
+            "Target Stock",
+            "Recommended Qty",
+            "Urgency",
         ]
 
         st.dataframe(
@@ -1071,18 +1114,55 @@ elif page == "Inventory & Risk":
             hide_index=True,
         )
 
-        st.caption(
-            "Recommended reorder quantity is based on replenishing "
-            "stock up to the configured reorder level."
-        )
-
     else:
         st.success("No products currently require replenishment.")
 
+    # --------------------------------------------------------
+    # CATEGORY RISK
+    # --------------------------------------------------------
 
-# ============================================================
-# CUSTOMERS
-# ============================================================
+    st.markdown(
+        '<div class="section-title">Category Risk Overview</div>',
+        unsafe_allow_html=True,
+    )
+
+    category_risk = (
+        risk_df.groupby("category")
+        .agg(
+            Products=("product_id", "count"),
+            Critical=("risk", lambda x: (x == "critical").sum()),
+            High=("risk", lambda x: (x == "high").sum()),
+            Medium=("risk", lambda x: (x == "medium").sum()),
+            Avg_Risk_Score=("risk_score", "mean"),
+            Recommended_Reorder=("recommended_reorder_qty", "sum"),
+        )
+        .reset_index()
+    )
+
+    category_risk["Avg_Risk_Score"] = (
+        category_risk["Avg_Risk_Score"].round(1)
+    )
+
+    category_risk = category_risk.sort_values(
+        by="Avg_Risk_Score",
+        ascending=False,
+    )
+
+    category_risk.columns = [
+        "Category",
+        "Products",
+        "Critical",
+        "High",
+        "Medium",
+        "Avg Risk Score",
+        "Recommended Reorder",
+    ]
+
+    st.dataframe(
+        category_risk,
+        use_container_width=True,
+        hide_index=True,
+    )
 
 elif page == "Customers":
 
