@@ -606,53 +606,206 @@ elif page == "Sales Analytics":
     )
 
     sales_df = pd.DataFrame(sales_trend)
+
+    if sales_df.empty:
+        st.warning("No sales trend data available.")
+        st.stop()
+
     sales_df["date"] = pd.to_datetime(sales_df["date"])
 
-    st.metric(
+    total_orders = overview["orders"]["total"]
+    avg_order_value = overview["orders"]["average_order_value"]
+    total_revenue = sales_df["revenue"].sum()
+    peak_day = sales_df.loc[sales_df["revenue"].idxmax()]
+
+    # --------------------------------------------------------
+    # SALES KPI CARDS
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Sales Performance</div>',
+        unsafe_allow_html=True,
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric(
         "Total Orders",
-        f"{overview['orders']['total']:,}",
+        f"{total_orders:,}",
     )
 
-    st.metric(
+    c2.metric(
         "Average Order Value",
-        f"${overview['orders']['average_order_value']:,.2f}",
+        f"${avg_order_value:,.2f}",
     )
 
-    chart = (
+    c3.metric(
+        "Sales Revenue",
+        f"${total_revenue:,.0f}",
+    )
+
+    c4.metric(
+        "Peak Sales Day",
+        f"${peak_day['revenue']:,.0f}",
+    )
+
+    st.write("")
+
+    # --------------------------------------------------------
+    # REVENUE TREND
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Revenue Trend</div>',
+        unsafe_allow_html=True,
+    )
+
+    revenue_chart = (
         alt.Chart(sales_df)
-        .mark_line()
+        .mark_line(point=True)
         .encode(
-            x="date:T",
-            y="revenue:Q",
-            tooltip=[
+            x=alt.X(
                 "date:T",
-                "orders:Q",
+                title="Date",
+            ),
+            y=alt.Y(
+                "revenue:Q",
+                title="Revenue",
+            ),
+            tooltip=[
+                alt.Tooltip(
+                    "date:T",
+                    title="Date",
+                ),
+                alt.Tooltip(
+                    "orders:Q",
+                    title="Orders",
+                    format=",",
+                ),
                 alt.Tooltip(
                     "revenue:Q",
+                    title="Revenue",
                     format=",.2f",
                 ),
             ],
         )
-        .properties(height=450)
+        .properties(height=400)
         .interactive()
     )
 
     st.altair_chart(
-        chart,
+        revenue_chart,
         use_container_width=True,
     )
 
+    # --------------------------------------------------------
+    # ORDERS + REVENUE ANALYSIS
+    # --------------------------------------------------------
+
+    left, right = st.columns(2)
+
+    with left:
+
+        st.markdown(
+            '<div class="section-title">Orders Trend</div>',
+            unsafe_allow_html=True,
+        )
+
+        orders_chart = (
+            alt.Chart(sales_df)
+            .mark_bar()
+            .encode(
+                x=alt.X(
+                    "date:T",
+                    title="Date",
+                ),
+                y=alt.Y(
+                    "orders:Q",
+                    title="Orders",
+                ),
+                tooltip=[
+                    alt.Tooltip(
+                        "date:T",
+                        title="Date",
+                    ),
+                    alt.Tooltip(
+                        "orders:Q",
+                        title="Orders",
+                        format=",",
+                    ),
+                ],
+            )
+            .properties(height=320)
+            .interactive()
+        )
+
+        st.altair_chart(
+            orders_chart,
+            use_container_width=True,
+        )
+
+    with right:
+
+        st.markdown(
+            '<div class="section-title">Order Status</div>',
+            unsafe_allow_html=True,
+        )
+
+        status_df = pd.DataFrame(
+            overview["orders"]["by_status"]
+        )
+
+        if not status_df.empty:
+
+            status_chart = (
+                alt.Chart(status_df)
+                .mark_bar()
+                .encode(
+                    x=alt.X(
+                        "count:Q",
+                        title="Orders",
+                    ),
+                    y=alt.Y(
+                        "status:N",
+                        sort="-x",
+                        title="Status",
+                    ),
+                    tooltip=[
+                        "status",
+                        alt.Tooltip(
+                            "count:Q",
+                            title="Orders",
+                            format=",",
+                        ),
+                    ],
+                )
+                .properties(height=320)
+            )
+
+            st.altair_chart(
+                status_chart,
+                use_container_width=True,
+            )
+
+    # --------------------------------------------------------
+    # DAILY SALES TABLE
+    # --------------------------------------------------------
+
     st.markdown(
-        '<div class="section-title">Order Status</div>',
+        '<div class="section-title">Daily Sales Performance</div>',
         unsafe_allow_html=True,
     )
 
-    status_df = pd.DataFrame(
-        overview["orders"]["by_status"]
+    display_df = sales_df.copy()
+
+    display_df["date"] = display_df["date"].dt.strftime(
+        "%Y-%m-%d"
     )
 
+    display_df["revenue"] = display_df["revenue"].round(2)
+
     st.dataframe(
-        status_df,
+        display_df,
         use_container_width=True,
         hide_index=True,
     )
@@ -1267,3 +1420,4 @@ st.markdown(
     """,
     unsafe_allow_html=True,
 )
+
