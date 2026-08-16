@@ -186,7 +186,10 @@ def returns_intelligence():
             WITH sales AS (
                 SELECT
                     COALESCE(SUM(oi.quantity), 0) AS sold_units,
-                    COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS sales_value
+                    COALESCE(
+                        SUM(oi.quantity * oi.unit_price),
+                        0
+                    ) AS sales_value
                 FROM order_items oi
                 JOIN orders o
                     ON oi.order_id = o.order_id
@@ -211,12 +214,12 @@ def returns_intelligence():
 
         reason_query = """
             SELECT
-                return_reason AS reason,
+                reason,
                 COUNT(*) AS returns,
                 COALESCE(SUM(quantity), 0) AS returned_units,
                 COALESCE(SUM(refund_amount), 0) AS refunds
             FROM returns
-            GROUP BY return_reason
+            GROUP BY reason
             ORDER BY returns DESC;
         """
 
@@ -227,21 +230,21 @@ def returns_intelligence():
                 COALESCE(SUM(quantity), 0) AS returned_units,
                 COALESCE(SUM(refund_amount), 0) AS refunds
             FROM returns
-            GROUP BY 1
-            ORDER BY 1;
+            GROUP BY DATE_TRUNC('month', return_date)
+            ORDER BY month;
         """
 
         summary = connection.execute(
             text(summary_query)
-        ).mappings().first()
+        ).mappings().one()
 
         reason_df = pd.read_sql(
-            reason_query,
+            text(reason_query),
             connection,
         )
 
         monthly_df = pd.read_sql(
-            monthly_query,
+            text(monthly_query),
             connection,
         )
 
