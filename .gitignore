@@ -18,3 +18,7 @@ data/processed/
 .idea/
 
 .DS_Store
+# Local backups and Python cache
+*.backup
+__pycache__/
+*.pyc
