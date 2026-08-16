@@ -1,4 +1,4 @@
-﻿from app.database.connection import engine
+from app.database.connection import engine
 
 from app.analytics.queries import (
     TOTAL_REVENUE_QUERY,
@@ -6,6 +6,7 @@ from app.analytics.queries import (
     GROSS_PROFIT_QUERY,
     TOP_PRODUCTS_QUERY,
     ORDER_KPI_QUERY,
+    PRODUCT_PERFORMANCE_QUERY,
 )
 
 
@@ -68,13 +69,13 @@ def get_order_kpis():
         cancellation_rate = (
             (cancelled_orders / total_orders) * 100
             if total_orders > 0
-            else 0.0
+            else 0
         )
 
         average_order_value = (
             total_revenue / active_orders
             if active_orders > 0
-            else 0.0
+            else 0
         )
 
         return {
@@ -83,21 +84,40 @@ def get_order_kpis():
             "cancelled_orders": cancelled_orders,
             "cancellation_rate": round(cancellation_rate, 2),
             "average_order_value": round(average_order_value, 2),
-            "total_revenue": total_revenue,
         }
+
+
+def get_product_performance():
+    with engine.connect() as connection:
+        result = connection.execute(PRODUCT_PERFORMANCE_QUERY)
+        rows = result.mappings().all()
+
+        return [
+            {
+                "product_id": int(row["product_id"]),
+                "product_name": row["product_name"],
+                "category": row["category"],
+                "units_sold": int(row["units_sold"]),
+                "revenue": float(row["revenue"]),
+                "cost": float(row["cost"]),
+                "gross_profit": float(row["gross_profit"]),
+                "gross_margin": float(row["gross_margin"]),
+            }
+            for row in rows
+        ]
 
 
 def get_overview():
     total_revenue = get_total_revenue()
     estimated_gross_profit = get_estimated_gross_profit()
     order_status = get_order_status_metrics()
-    top_products = get_top_products()
     order_kpis = get_order_kpis()
+    top_products = get_top_products()
 
     gross_margin = (
         (estimated_gross_profit / total_revenue) * 100
         if total_revenue > 0
-        else 0.0
+        else 0
     )
 
     return {
