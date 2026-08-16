@@ -25,90 +25,149 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-        .stApp {
-            background: #f5f7fb;
-        }
 
-        [data-testid="stSidebar"] {
-            background: #111827;
-        }
+    /* ========================================================
+       OPSPILOT AI - DARK PROFESSIONAL THEME
+       ======================================================== */
 
-        [data-testid="stSidebar"] * {
-            color: #f9fafb !important;
-        }
+    .stApp {
+        background: #0f172a;
+        color: #f8fafc;
+    }
 
-        .main-title {
-            font-size: 34px;
-            font-weight: 800;
-            color: #111827;
-            margin-bottom: 4px;
-        }
+    .main {
+        background: #0f172a;
+    }
 
-        .subtitle {
-            color: #6b7280;
-            font-size: 15px;
-            margin-bottom: 25px;
-        }
+    /* Main content */
+    .block-container {
+        padding-top: 2rem;
+        padding-bottom: 3rem;
+    }
 
-        .section-title {
-            font-size: 21px;
-            font-weight: 750;
-            color: #111827;
-            margin-top: 18px;
-            margin-bottom: 12px;
-        }
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background: #111827;
+        border-right: 1px solid #1e293b;
+    }
 
-        .insight-card {
-            padding: 15px 17px;
-            border-radius: 12px;
-            background: white;
-            border: 1px solid #e5e7eb;
-            margin-bottom: 10px;
-        }
+    [data-testid="stSidebar"] * {
+        color: #f8fafc !important;
+    }
 
-        .insight-title {
-            font-weight: 700;
-            color: #111827;
-            margin-bottom: 5px;
-        }
+    /* Titles */
+    .main-title {
+        font-size: 42px;
+        font-weight: 800;
+        color: #f8fafc !important;
+        margin-bottom: 4px;
+    }
 
-        .insight-message {
-            color: #4b5563;
-            font-size: 14px;
-        }
+    .subtitle {
+        font-size: 17px;
+        color: #94a3b8 !important;
+        margin-bottom: 30px;
+    }
 
-        .risk-critical {
-            color: #b91c1c;
-            font-weight: 800;
-        }
+    .section-title {
+        font-size: 23px;
+        font-weight: 700;
+        color: #f8fafc !important;
+        margin-top: 20px;
+        margin-bottom: 15px;
+    }
 
-        .risk-high {
-            color: #c2410c;
-            font-weight: 800;
-        }
+    /* Metric cards */
+    [data-testid="stMetric"] {
+        background: #1e293b !important;
+        border: 1px solid #334155 !important;
+        border-radius: 14px !important;
+        padding: 18px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+    }
 
-        .risk-medium {
-            color: #a16207;
-            font-weight: 800;
-        }
+    [data-testid="stMetricLabel"] {
+        color: #94a3b8 !important;
+    }
 
-        .risk-low {
-            color: #15803d;
-            font-weight: 800;
-        }
+    [data-testid="stMetricValue"] {
+        color: #f8fafc !important;
+        font-weight: 800 !important;
+    }
 
-        .footer {
-            text-align: center;
-            color: #9ca3af;
-            font-size: 12px;
-            margin-top: 35px;
-            padding: 20px;
-        }
+    [data-testid="stMetricDelta"] {
+        color: #22c55e !important;
+    }
+
+    /* Tables */
+    [data-testid="stDataFrame"] {
+        background: #1e293b !important;
+        border-radius: 12px !important;
+    }
+
+    /* Expanders */
+    [data-testid="stExpander"] {
+        background: #1e293b !important;
+        border: 1px solid #334155 !important;
+        border-radius: 12px !important;
+    }
+
+    /* Buttons */
+    .stButton > button {
+        background: #2563eb !important;
+        color: #ffffff !important;
+        border: none !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+    }
+
+    .stButton > button:hover {
+        background: #1d4ed8 !important;
+        color: #ffffff !important;
+    }
+
+    /* Selectbox */
+    [data-baseweb="select"] > div {
+        background: #1e293b !important;
+        color: #f8fafc !important;
+        border-color: #334155 !important;
+    }
+
+    /* Info / success / warning cards */
+    [data-testid="stAlert"] {
+        border-radius: 12px !important;
+    }
+
+    /* General text */
+    p, label, span, div {
+        color: inherit;
+    }
+
+    /* Insight cards */
+    .insight-card {
+        background: #1e293b !important;
+        border: 1px solid #334155 !important;
+        border-radius: 12px;
+        padding: 18px;
+        margin-bottom: 12px;
+    }
+
+    .insight-title {
+        color: #f8fafc !important;
+        font-size: 17px;
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .insight-message {
+        color: #cbd5e1 !important;
+        font-size: 14px;
+    }
+
     </style>
     """,
     unsafe_allow_html=True,
 )
-
 
 # ============================================================
 # API HELPERS
@@ -600,64 +659,272 @@ elif page == "Sales Analytics":
 
 
 # ============================================================
-# INVENTORY
+# INVENTORY INTELLIGENCE
 # ============================================================
 
 elif page == "Inventory & Risk":
 
     st.markdown(
-        '<div class="section-title">Inventory & Risk Management</div>',
+        '<div class="section-title">Inventory Intelligence</div>',
         unsafe_allow_html=True,
     )
 
     risk_df = pd.DataFrame(inventory_risk)
 
-    critical = len(
-        risk_df[risk_df["risk"] == "critical"]
-    )
+    if risk_df.empty:
+        st.warning("No inventory risk data available.")
+        st.stop()
 
-    high = len(
-        risk_df[risk_df["risk"] == "high"]
-    )
+    critical_df = risk_df[risk_df["risk"] == "critical"]
+    high_df = risk_df[risk_df["risk"] == "high"]
+    medium_df = risk_df[risk_df["risk"] == "medium"]
+    low_df = risk_df[risk_df["risk"] == "low"]
 
-    medium = len(
-        risk_df[risk_df["risk"] == "medium"]
-    )
+    critical = len(critical_df)
+    high = len(high_df)
+    medium = len(medium_df)
+    low = len(low_df)
 
-    low = len(
-        risk_df[risk_df["risk"] == "low"]
-    )
+    # --------------------------------------------------------
+    # RISK KPI CARDS
+    # --------------------------------------------------------
 
     c1, c2, c3, c4 = st.columns(4)
 
-    c1.metric("Critical", critical)
-    c2.metric("High", high)
-    c3.metric("Medium", medium)
-    c4.metric("Low", low)
+    c1.metric("Critical Risk", critical, "Immediate action")
+    c2.metric("High Risk", high, "Priority action")
+    c3.metric("Medium Risk", medium, "Monitor")
+    c4.metric("Low Risk", low, "Healthy")
+
+    st.write("")
+
+    # --------------------------------------------------------
+    # RISK DISTRIBUTION + SUMMARY
+    # --------------------------------------------------------
+
+    left, right = st.columns(2)
+
+    with left:
+
+        st.markdown(
+            '<div class="section-title">Risk Distribution</div>',
+            unsafe_allow_html=True,
+        )
+
+        risk_counts = pd.DataFrame(
+            {
+                "Risk": ["Critical", "High", "Medium", "Low"],
+                "Products": [critical, high, medium, low],
+            }
+        )
+
+        risk_chart = (
+            alt.Chart(risk_counts)
+            .mark_bar()
+            .encode(
+                x=alt.X("Products:Q", title="Products"),
+                y=alt.Y(
+                    "Risk:N",
+                    sort=["Critical", "High", "Medium", "Low"],
+                    title=None,
+                ),
+                tooltip=["Risk", "Products"],
+            )
+            .properties(height=300)
+        )
+
+        st.altair_chart(
+            risk_chart,
+            use_container_width=True,
+        )
+
+    with right:
+
+        st.markdown(
+            '<div class="section-title">Inventory Summary</div>',
+            unsafe_allow_html=True,
+        )
+
+        inventory_summary = inventory["inventory"]
+
+        s1, s2 = st.columns(2)
+
+        s1.metric(
+            "Total Products",
+            f"{inventory_summary['total_products']:,}",
+        )
+
+        s2.metric(
+            "Total Units",
+            f"{inventory_summary['total_units']:,}",
+        )
+
+        s3, s4 = st.columns(2)
+
+        s3.metric(
+            "Low Stock",
+            f"{inventory_summary['low_stock_products']:,}",
+        )
+
+        s4.metric(
+            "Out of Stock",
+            f"{inventory_summary['out_of_stock_products']:,}",
+        )
+
+        st.info(
+            f"{critical} products require immediate attention "
+            f"and {high} additional products have high stockout risk."
+        )
+
+    # --------------------------------------------------------
+    # CRITICAL PRODUCTS
+    # --------------------------------------------------------
 
     st.markdown(
-        '<div class="section-title">Products Requiring Attention</div>',
+        '<div class="section-title">?? Immediate Action Required</div>',
         unsafe_allow_html=True,
     )
 
-    priority_df = risk_df[
-        risk_df["risk"].isin(
-            ["critical", "high"]
-        )
+    critical_display = critical_df[
+        [
+            "product_name",
+            "category",
+            "current_stock",
+            "reorder_level",
+            "avg_daily_sales",
+            "estimated_days_until_stockout",
+            "risk",
+        ]
     ].copy()
 
-    priority_df = priority_df.sort_values(
-        by=[
-            "risk",
-            "estimated_days_until_stockout",
+    if not critical_display.empty:
+
+        critical_display = critical_display.sort_values(
+            by="estimated_days_until_stockout"
+        )
+
+        critical_display.columns = [
+            "Product",
+            "Category",
+            "Current Stock",
+            "Reorder Level",
+            "Avg Daily Sales",
+            "Days Until Stockout",
+            "Risk",
         ]
+
+        st.dataframe(
+            critical_display,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    else:
+        st.success("No critical inventory risks detected.")
+
+    # --------------------------------------------------------
+    # HIGH RISK PRODUCTS
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">?? High Risk Products</div>',
+        unsafe_allow_html=True,
     )
 
-    st.dataframe(
-        priority_df,
-        use_container_width=True,
-        hide_index=True,
+    high_display = high_df[
+        [
+            "product_name",
+            "category",
+            "current_stock",
+            "reorder_level",
+            "avg_daily_sales",
+            "estimated_days_until_stockout",
+            "risk",
+        ]
+    ].copy()
+
+    if not high_display.empty:
+
+        high_display = high_display.sort_values(
+            by="estimated_days_until_stockout"
+        )
+
+        high_display.columns = [
+            "Product",
+            "Category",
+            "Current Stock",
+            "Reorder Level",
+            "Avg Daily Sales",
+            "Days Until Stockout",
+            "Risk",
+        ]
+
+        st.dataframe(
+            high_display,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    else:
+        st.success("No high-risk products detected.")
+
+    # --------------------------------------------------------
+    # REORDER RECOMMENDATIONS
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">?? Reorder Recommendations</div>',
+        unsafe_allow_html=True,
     )
+
+    reorder_df = risk_df[
+        risk_df["current_stock"] <= risk_df["reorder_level"]
+    ].copy()
+
+    if not reorder_df.empty:
+
+        reorder_df["recommended_order_qty"] = (
+            reorder_df["reorder_level"]
+            - reorder_df["current_stock"]
+        )
+
+        reorder_df = reorder_df.sort_values(
+            by=["risk", "estimated_days_until_stockout"]
+        )
+
+        reorder_display = reorder_df[
+            [
+                "product_name",
+                "category",
+                "current_stock",
+                "reorder_level",
+                "recommended_order_qty",
+                "risk",
+            ]
+        ].copy()
+
+        reorder_display.columns = [
+            "Product",
+            "Category",
+            "Current Stock",
+            "Reorder Level",
+            "Recommended Reorder Qty",
+            "Risk",
+        ]
+
+        st.dataframe(
+            reorder_display,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+        st.caption(
+            "Recommended reorder quantity is based on replenishing "
+            "stock up to the configured reorder level."
+        )
+
+    else:
+        st.success("No products currently require replenishment.")
 
 
 # ============================================================
