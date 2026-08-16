@@ -1,4 +1,4 @@
-from app.analytics.metrics import (
+﻿from app.analytics.metrics import (
     get_overview,
     get_customer_analytics,
     get_inventory_risk,
@@ -10,6 +10,82 @@ from app.analytics.anomaly import detect_sales_anomalies
 from app.analytics.inventory_risk import get_inventory_risk as get_detailed_inventory_risk
 
 
+
+def enrich_insights(insights):
+    recommendations = {
+        "High cancellation rate": (
+            "Review cancellation reasons, fulfillment delays, payment failures, and inventory availability.",
+            "Investigate the highest-volume cancellation causes and prioritize the top operational issue.",
+            "Reducing cancellations can recover lost orders and improve fulfillment reliability."
+        ),
+        "Low gross margin": (
+            "Review product-level margins, supplier costs, discounts, and pricing strategy.",
+            "Identify the lowest-margin products and evaluate repricing or cost reduction opportunities.",
+            "Margin improvement directly increases profitability without requiring additional order volume."
+        ),
+        "Healthy gross margin": (
+            "Maintain pricing discipline while monitoring product-level margin changes.",
+            "Track margin trends and investigate significant deterioration early.",
+            "Stable margins support predictable profitability and sustainable growth."
+        ),
+        "No recent customer acquisition": (
+            "Review acquisition channels, campaign performance, and customer tracking.",
+            "Validate acquisition tracking and identify channels capable of generating new customers.",
+            "Weak acquisition can reduce future revenue growth and customer lifetime value."
+        ),
+        "Products out of stock": (
+            "Replenish zero-stock products immediately and review supplier lead times.",
+            "Prioritize products with active demand and place replenishment orders.",
+            "Stockouts can cause missed sales and reduce customer satisfaction."
+        ),
+        "Low inventory detected": (
+            "Review products approaching their reorder levels and replenish according to demand.",
+            "Prioritize low-stock products by sales velocity and reorder urgency.",
+            "Early replenishment reduces the probability of future stockouts and lost revenue."
+        ),
+        "Critical stockout risk": (
+            "Immediately replenish products classified as critical stockout risk.",
+            "Prioritize critical products using recommended reorder quantities and urgency.",
+            "Critical stockouts represent an immediate risk of lost sales."
+        ),
+        "High stockout risk": (
+            "Review high-risk products and schedule replenishment before inventory reaches zero.",
+            "Prioritize high-risk products based on demand velocity and remaining stock coverage.",
+            "Proactive replenishment can prevent avoidable revenue loss."
+        ),
+        "Returns impacting revenue": (
+            "Analyze return reasons, refund exposure, product quality, and fulfillment issues.",
+            "Prioritize the return reasons generating the highest volume and refund amount.",
+            "Reducing avoidable returns can lower refund costs and protect revenue."
+        ),
+        "Top performing category": (
+            "Continue monitoring demand and inventory availability for the leading category.",
+            "Protect inventory levels and evaluate opportunities to expand successful products.",
+            "Strong categories can provide opportunities for additional revenue growth."
+        ),
+        "Sales anomalies detected": (
+            "Investigate unusual sales periods and determine whether they represent demand changes or operational issues.",
+            "Review the highest-severity anomalies first and compare them with promotions, inventory, and fulfillment events.",
+            "Early anomaly investigation can prevent operational problems from becoming larger business impacts."
+        ),
+    }
+
+    for insight in insights:
+        title = insight.get("title", "")
+        recommendation, action, impact = recommendations.get(
+            title,
+            (
+                "Review the underlying operational data and monitor this area.",
+                "Investigate the issue and prioritize corrective action based on business impact.",
+                "Addressing the issue can improve operational performance and reduce business risk."
+            )
+        )
+
+        insight["recommendation"] = recommendation
+        insight["action"] = action
+        insight["business_impact"] = impact
+
+    return insights
 def generate_business_insights():
 
     overview = get_overview()
@@ -229,6 +305,8 @@ def generate_business_insights():
                 f"{len(anomalies)} unusual sales periods were detected."
             )
         })
+
+    insights = enrich_insights(insights)
 
     return {
         "summary": {

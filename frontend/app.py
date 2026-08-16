@@ -1666,7 +1666,6 @@ elif page == "AI Insights":
     # ========================================================
     # HELPER
     # ========================================================
-
     def show_insight(insight):
 
         priority = insight["priority"].lower()
@@ -1674,6 +1673,9 @@ elif page == "AI Insights":
         title = insight["title"]
         area = insight["area"]
         message = insight["message"]
+        recommendation = insight.get("recommendation", "")
+        action = insight.get("action", "")
+        business_impact = insight.get("business_impact", "")
 
         if priority == "critical":
 
@@ -1706,6 +1708,15 @@ elif page == "AI Insights":
                 f"Area: {area}\n\n"
                 f"{message}"
             )
+
+        if recommendation:
+            st.markdown(f"**Recommendation:** {recommendation}")
+
+        if action:
+            st.markdown(f"**Recommended Action:** {action}")
+
+        if business_impact:
+            st.markdown(f"**Business Impact:** {business_impact}")
 
     # ========================================================
     # CRITICAL ACTIONS
