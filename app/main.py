@@ -55,6 +55,108 @@ def analytics_customers():
     }
 
 
+
+@app.get("/analytics/customer-intelligence")
+def customer_intelligence():
+    from app.database.connection import engine
+    import pandas as pd
+
+    with engine.connect() as connection:
+
+        summary_query = """
+            WITH customer_orders AS (
+                SELECT
+                    o.customer_id,
+                    COUNT(DISTINCT o.order_id) AS order_count,
+                    COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS revenue
+                FROM orders o
+                JOIN order_items oi
+                    ON o.order_id = oi.order_id
+                WHERE o.status != 'cancelled'
+                GROUP BY o.customer_id
+            )
+            SELECT
+                COUNT(*) AS customers_with_orders,
+                COUNT(*) FILTER (WHERE order_count >= 2) AS repeat_customers,
+                COALESCE(AVG(order_count), 0) AS avg_orders_per_customer,
+                COALESCE(AVG(revenue), 0) AS avg_customer_revenue,
+                COALESCE(SUM(revenue), 0) AS customer_revenue
+            FROM customer_orders;
+        """
+
+        top_query = """
+            SELECT
+                o.customer_id,
+                COUNT(DISTINCT o.order_id) AS orders,
+                COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS revenue
+            FROM orders o
+            JOIN order_items oi
+                ON o.order_id = oi.order_id
+            WHERE o.status != 'cancelled'
+            GROUP BY o.customer_id
+            ORDER BY revenue DESC
+            LIMIT 10;
+        """
+
+        segment_query = """
+            WITH customer_orders AS (
+                SELECT
+                    o.customer_id,
+                    COUNT(DISTINCT o.order_id) AS order_count,
+                    COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS revenue
+                FROM orders o
+                JOIN order_items oi
+                    ON o.order_id = oi.order_id
+                WHERE o.status != 'cancelled'
+                GROUP BY o.customer_id
+            )
+            SELECT
+                CASE
+                    WHEN order_count = 1 THEN 'One-time'
+                    WHEN order_count BETWEEN 2 AND 4 THEN 'Repeat'
+                    WHEN order_count >= 5 THEN 'Loyal'
+                    ELSE 'Other'
+                END AS segment,
+                COUNT(*) AS customers,
+                COALESCE(SUM(revenue), 0) AS revenue
+            FROM customer_orders
+            GROUP BY 1
+            ORDER BY customers DESC;
+        """
+
+        summary = connection.execute(
+            __import__("sqlalchemy").text(summary_query)
+        ).mappings().first()
+
+        top_df = pd.read_sql(top_query, connection)
+        segment_df = pd.read_sql(segment_query, connection)
+
+    total = int(summary["customers_with_orders"] or 0)
+    repeat = int(summary["repeat_customers"] or 0)
+
+    return {
+        "customers_with_orders": total,
+        "repeat_customers": repeat,
+        "repeat_customer_rate": round(
+            (repeat / total * 100) if total else 0,
+            1,
+        ),
+        "avg_orders_per_customer": round(
+            float(summary["avg_orders_per_customer"] or 0),
+            2,
+        ),
+        "avg_customer_revenue": round(
+            float(summary["avg_customer_revenue"] or 0),
+            2,
+        ),
+        "customer_revenue": round(
+            float(summary["customer_revenue"] or 0),
+            2,
+        ),
+        "top_customers": top_df.to_dict(orient="records"),
+        "segments": segment_df.to_dict(orient="records"),
+    }
+
 @app.get("/analytics/inventory")
 def analytics_inventory():
     return {

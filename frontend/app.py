@@ -251,6 +251,7 @@ with st.sidebar:
 
 overview, overview_error = safe_api("/analytics/overview")
 customers, customers_error = safe_api("/analytics/customers")
+customer_intelligence, customer_intelligence_error = safe_api("/analytics/customer-intelligence")
 inventory, inventory_error = safe_api("/analytics/inventory")
 returns, returns_error = safe_api("/analytics/returns")
 categories, categories_error = safe_api("/analytics/categories")
@@ -282,6 +283,7 @@ st.markdown(
 all_errors = [
     overview_error,
     customers_error,
+    customer_intelligence_error,
     inventory_error,
     returns_error,
     categories_error,
@@ -1167,26 +1169,182 @@ elif page == "Inventory & Risk":
 elif page == "Customers":
 
     st.markdown(
-        '<div class="section-title">Customer Analytics</div>',
+        '<div class="section-title">Customer Intelligence</div>',
         unsafe_allow_html=True,
     )
 
-    c1, c2, c3 = st.columns(3)
+    ci = customer_intelligence
+
+    total_customers = customers["customers"]["total_customers"]
+    new_customers = customers["customers"]["new_customers_90_days"]
+    aov = customers["average_order_value"]
+
+    active_customers = ci["customers_with_orders"]
+    repeat_customers = ci["repeat_customers"]
+    repeat_rate = ci["repeat_customer_rate"]
+    avg_orders = ci["avg_orders_per_customer"]
+    customer_revenue = ci["customer_revenue"]
+
+    # --------------------------------------------------------
+    # CUSTOMER KPIs
+    # --------------------------------------------------------
+
+    c1, c2, c3, c4 = st.columns(4)
 
     c1.metric(
         "Total Customers",
-        f"{customers['customers']['total_customers']:,}",
+        f"{total_customers:,}",
     )
 
     c2.metric(
-        "New Customers / 90 Days",
-        f"{customers['customers']['new_customers_90_days']:,}",
+        "Active Customers",
+        f"{active_customers:,}",
     )
 
     c3.metric(
-        "Average Order Value",
-        f"${customers['average_order_value']:,.2f}",
+        "New / 90 Days",
+        f"{new_customers:,}",
     )
+
+    c4.metric(
+        "Average Order Value",
+        f"${aov:,.2f}",
+    )
+
+    st.write("")
+
+    c5, c6, c7, c8 = st.columns(4)
+
+    c5.metric(
+        "Repeat Customers",
+        f"{repeat_customers:,}",
+    )
+
+    c6.metric(
+        "Repeat Rate",
+        f"{repeat_rate:.1f}%",
+    )
+
+    c7.metric(
+        "Avg Orders / Customer",
+        f"{avg_orders:.2f}",
+    )
+
+    c8.metric(
+        "Customer Revenue",
+        f"${customer_revenue:,.0f}",
+    )
+
+    # --------------------------------------------------------
+    # CUSTOMER SEGMENTS
+    # --------------------------------------------------------
+
+    left, right = st.columns(2)
+
+    with left:
+
+        st.markdown(
+            '<div class="section-title">Customer Segments</div>',
+            unsafe_allow_html=True,
+        )
+
+        segment_df = pd.DataFrame(ci["segments"])
+
+        if not segment_df.empty:
+
+            segment_chart = (
+                alt.Chart(segment_df)
+                .mark_bar()
+                .encode(
+                    x=alt.X(
+                        "customers:Q",
+                        title="Customers",
+                    ),
+                    y=alt.Y(
+                        "segment:N",
+                        sort="-x",
+                        title=None,
+                    ),
+                    tooltip=[
+                        "segment",
+                        "customers",
+                        "revenue",
+                    ],
+                )
+                .properties(height=300)
+            )
+
+            st.altair_chart(
+                segment_chart,
+                use_container_width=True,
+            )
+
+    with right:
+
+        st.markdown(
+            '<div class="section-title">Customer Health</div>',
+            unsafe_allow_html=True,
+        )
+
+        if repeat_rate >= 40:
+            st.success(
+                f"Strong customer retention signal: "
+                f"{repeat_rate:.1f}% of active customers are repeat buyers."
+            )
+        elif repeat_rate >= 20:
+            st.info(
+                f"Moderate repeat behavior: "
+                f"{repeat_rate:.1f}% of active customers are repeat buyers."
+            )
+        else:
+            st.warning(
+                f"Low repeat behavior detected: "
+                f"only {repeat_rate:.1f}% of active customers are repeat buyers."
+            )
+
+        st.metric(
+            "Average Revenue / Customer",
+            f"${ci['avg_customer_revenue']:,.2f}",
+        )
+
+    # --------------------------------------------------------
+    # TOP CUSTOMERS
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Top Customers by Revenue</div>',
+        unsafe_allow_html=True,
+    )
+
+    top_df = pd.DataFrame(ci["top_customers"])
+
+    if not top_df.empty:
+
+        top_df = top_df.copy()
+
+        top_df.insert(
+            0,
+            "Rank",
+            range(1, len(top_df) + 1),
+        )
+
+        top_df["revenue"] = top_df["revenue"].round(2)
+
+        top_df.columns = [
+            "Rank",
+            "Customer ID",
+            "Orders",
+            "Revenue",
+        ]
+
+        st.dataframe(
+            top_df,
+            use_container_width=True,
+            hide_index=True,
+        )
+
+    else:
+        st.info("No customer transaction data available.")
 
 
 # ============================================================
