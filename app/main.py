@@ -173,6 +173,125 @@ def analytics_returns():
     }
 
 
+
+@app.get("/analytics/returns-intelligence")
+def returns_intelligence():
+    from app.database.connection import engine
+    import pandas as pd
+    from sqlalchemy import text
+
+    with engine.connect() as connection:
+
+        summary_query = """
+            WITH sales AS (
+                SELECT
+                    COALESCE(SUM(oi.quantity), 0) AS sold_units,
+                    COALESCE(SUM(oi.quantity * oi.unit_price), 0) AS sales_value
+                FROM order_items oi
+                JOIN orders o
+                    ON oi.order_id = o.order_id
+                WHERE o.status != 'cancelled'
+            ),
+            return_data AS (
+                SELECT
+                    COUNT(*) AS total_returns,
+                    COALESCE(SUM(quantity), 0) AS returned_units,
+                    COALESCE(SUM(refund_amount), 0) AS refunds
+                FROM returns
+            )
+            SELECT
+                s.sold_units,
+                s.sales_value,
+                r.total_returns,
+                r.returned_units,
+                r.refunds
+            FROM sales s
+            CROSS JOIN return_data r;
+        """
+
+        reason_query = """
+            SELECT
+                return_reason AS reason,
+                COUNT(*) AS returns,
+                COALESCE(SUM(quantity), 0) AS returned_units,
+                COALESCE(SUM(refund_amount), 0) AS refunds
+            FROM returns
+            GROUP BY return_reason
+            ORDER BY returns DESC;
+        """
+
+        monthly_query = """
+            SELECT
+                DATE_TRUNC('month', return_date) AS month,
+                COUNT(*) AS returns,
+                COALESCE(SUM(quantity), 0) AS returned_units,
+                COALESCE(SUM(refund_amount), 0) AS refunds
+            FROM returns
+            GROUP BY 1
+            ORDER BY 1;
+        """
+
+        summary = connection.execute(
+            text(summary_query)
+        ).mappings().first()
+
+        reason_df = pd.read_sql(
+            reason_query,
+            connection,
+        )
+
+        monthly_df = pd.read_sql(
+            monthly_query,
+            connection,
+        )
+
+    sold_units = int(summary["sold_units"] or 0)
+    sales_value = float(summary["sales_value"] or 0)
+    total_returns = int(summary["total_returns"] or 0)
+    returned_units = int(summary["returned_units"] or 0)
+    refunds = float(summary["refunds"] or 0)
+
+    return_rate = (
+        returned_units / sold_units * 100
+        if sold_units
+        else 0
+    )
+
+    refund_rate = (
+        refunds / sales_value * 100
+        if sales_value
+        else 0
+    )
+
+    avg_refund = (
+        refunds / total_returns
+        if total_returns
+        else 0
+    )
+
+    if return_rate >= 10:
+        severity = "critical"
+    elif return_rate >= 5:
+        severity = "high"
+    elif return_rate >= 2:
+        severity = "medium"
+    else:
+        severity = "low"
+
+    return {
+        "sold_units": sold_units,
+        "sales_value": round(sales_value, 2),
+        "total_returns": total_returns,
+        "returned_units": returned_units,
+        "refunds": round(refunds, 2),
+        "return_rate": round(return_rate, 2),
+        "refund_rate": round(refund_rate, 2),
+        "avg_refund_per_return": round(avg_refund, 2),
+        "severity": severity,
+        "reasons": reason_df.to_dict(orient="records"),
+        "monthly": monthly_df.to_dict(orient="records"),
+    }
+
 @app.get("/analytics/categories")
 def analytics_categories():
     return get_category_performance()

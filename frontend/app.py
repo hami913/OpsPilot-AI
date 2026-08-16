@@ -254,6 +254,7 @@ customers, customers_error = safe_api("/analytics/customers")
 customer_intelligence, customer_intelligence_error = safe_api("/analytics/customer-intelligence")
 inventory, inventory_error = safe_api("/analytics/inventory")
 returns, returns_error = safe_api("/analytics/returns")
+returns_intelligence, returns_intelligence_error = safe_api("/analytics/returns-intelligence")
 categories, categories_error = safe_api("/analytics/categories")
 sales_trend, sales_error = safe_api("/analytics/sales-trend")
 anomalies, anomalies_error = safe_api("/analytics/anomalies")
@@ -286,6 +287,7 @@ all_errors = [
     customer_intelligence_error,
     inventory_error,
     returns_error,
+    returns_intelligence_error,
     categories_error,
     sales_error,
     anomalies_error,
@@ -1354,35 +1356,241 @@ elif page == "Customers":
 elif page == "Returns":
 
     st.markdown(
-        '<div class="section-title">Returns Analytics</div>',
+        '<div class="section-title">Returns Intelligence</div>',
         unsafe_allow_html=True,
     )
 
-    c1, c2, c3 = st.columns(3)
+    ri = returns_intelligence
+
+    total_returns = ri["total_returns"]
+    returned_units = ri["returned_units"]
+    refunds = ri["refunds"]
+    return_rate = ri["return_rate"]
+    refund_rate = ri["refund_rate"]
+    avg_refund = ri["avg_refund_per_return"]
+
+    # --------------------------------------------------------
+    # KPI CARDS
+    # --------------------------------------------------------
+
+    c1, c2, c3, c4 = st.columns(4)
 
     c1.metric(
         "Total Returns",
-        f"{returns['returns']['total_returns']:,}",
+        f"{total_returns:,}",
     )
 
     c2.metric(
         "Returned Units",
-        f"{returns['returns']['returned_units']:,}",
+        f"{returned_units:,}",
     )
 
     c3.metric(
-        "Refunds",
-        f"${returns['returns']['total_refunds']:,.2f}",
+        "Return Rate",
+        f"{return_rate:.2f}%",
     )
+
+    c4.metric(
+        "Refunds",
+        f"${refunds:,.0f}",
+    )
+
+    st.write("")
+
+    c5, c6, c7, c8 = st.columns(4)
+
+    c5.metric(
+        "Refund Rate",
+        f"{refund_rate:.2f}%",
+    )
+
+    c6.metric(
+        "Avg Refund / Return",
+        f"${avg_refund:,.2f}",
+    )
+
+    c7.metric(
+        "Units Sold",
+        f"{ri['sold_units']:,}",
+    )
+
+    c8.metric(
+        "Return Severity",
+        ri["severity"].upper(),
+    )
+
+    # --------------------------------------------------------
+    # BUSINESS HEALTH
+    # --------------------------------------------------------
+
+    severity = ri["severity"]
+
+    if severity == "critical":
+        st.error(
+            f"Critical return pressure detected. "
+            f"Return rate is {return_rate:.2f}%."
+        )
+    elif severity == "high":
+        st.warning(
+            f"High return pressure detected. "
+            f"Return rate is {return_rate:.2f}%."
+        )
+    elif severity == "medium":
+        st.info(
+            f"Moderate return activity detected. "
+            f"Return rate is {return_rate:.2f}%."
+        )
+    else:
+        st.success(
+            f"Return performance is healthy at "
+            f"{return_rate:.2f}%."
+        )
+
+    # --------------------------------------------------------
+    # RETURN REASONS
+    # --------------------------------------------------------
+
+    left, right = st.columns(2)
 
     reason_df = pd.DataFrame(
-        returns["reasons"]
+        ri["reasons"]
     )
 
-    st.dataframe(
-        reason_df,
-        use_container_width=True,
-        hide_index=True,
+    with left:
+
+        st.markdown(
+            '<div class="section-title">Return Reasons</div>',
+            unsafe_allow_html=True,
+        )
+
+        if not reason_df.empty:
+
+            reason_chart = (
+                alt.Chart(reason_df)
+                .mark_bar()
+                .encode(
+                    x=alt.X(
+                        "returns:Q",
+                        title="Returns",
+                    ),
+                    y=alt.Y(
+                        "reason:N",
+                        sort="-x",
+                        title=None,
+                    ),
+                    tooltip=[
+                        "reason",
+                        "returns",
+                        "returned_units",
+                        "refunds",
+                    ],
+                )
+                .properties(height=320)
+            )
+
+            st.altair_chart(
+                reason_chart,
+                use_container_width=True,
+            )
+
+    with right:
+
+        st.markdown(
+            '<div class="section-title">Reason Impact</div>',
+            unsafe_allow_html=True,
+        )
+
+        if not reason_df.empty:
+
+            reason_display = reason_df.copy()
+
+            reason_display["refunds"] = (
+                reason_display["refunds"].round(2)
+            )
+
+            reason_display.columns = [
+                "Reason",
+                "Returns",
+                "Returned Units",
+                "Refunds",
+            ]
+
+            st.dataframe(
+                reason_display,
+                use_container_width=True,
+                hide_index=True,
+            )
+
+    # --------------------------------------------------------
+    # MONTHLY RETURN TREND
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Return Trend</div>',
+        unsafe_allow_html=True,
+    )
+
+    monthly_df = pd.DataFrame(
+        ri["monthly"]
+    )
+
+    if not monthly_df.empty:
+
+        monthly_df["month"] = pd.to_datetime(
+            monthly_df["month"]
+        )
+
+        trend_chart = (
+            alt.Chart(monthly_df)
+            .mark_line(point=True)
+            .encode(
+                x=alt.X(
+                    "month:T",
+                    title="Month",
+                ),
+                y=alt.Y(
+                    "returns:Q",
+                    title="Returns",
+                ),
+                tooltip=[
+                    "month",
+                    "returns",
+                    "returned_units",
+                    "refunds",
+                ],
+            )
+            .properties(height=320)
+        )
+
+        st.altair_chart(
+            trend_chart,
+            use_container_width=True,
+        )
+
+    # --------------------------------------------------------
+    # RETURN DETAILS
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Return Impact Analysis</div>',
+        unsafe_allow_html=True,
+    )
+
+    impact1, impact2, impact3 = st.columns(3)
+
+    impact1.metric(
+        "Revenue at Risk",
+        f"${refunds:,.2f}",
+    )
+
+    impact2.metric(
+        "Refund / Return",
+        f"${avg_refund:,.2f}",
+    )
+
+    impact3.metric(
+        "Returned Unit Share",
+        f"{return_rate:.2f}%",
     )
 
 
