@@ -9,6 +9,22 @@ TOTAL_REVENUE_QUERY = text("""
 """)
 
 
+ITEM_REVENUE_QUERY = text("""
+    SELECT
+        COALESCE(
+            ROUND(
+                SUM(oi.quantity * oi.unit_price),
+                2
+            ),
+            0
+        ) AS item_revenue
+    FROM order_items oi
+    JOIN orders o
+        ON oi.order_id = o.order_id
+    WHERE o.status != 'cancelled';
+""")
+
+
 ORDER_STATUS_QUERY = text("""
     SELECT
         status,

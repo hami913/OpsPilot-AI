@@ -2,6 +2,7 @@ from app.database.connection import engine
 
 from app.analytics.queries import (
     TOTAL_REVENUE_QUERY,
+    ITEM_REVENUE_QUERY,
     ORDER_STATUS_QUERY,
     GROSS_PROFIT_QUERY,
     TOP_PRODUCTS_QUERY,
@@ -15,6 +16,14 @@ def get_total_revenue():
         result = connection.execute(TOTAL_REVENUE_QUERY)
         row = result.mappings().one()
         return float(row["total_revenue"])
+
+
+
+def get_item_revenue():
+    with engine.connect() as connection:
+        result = connection.execute(ITEM_REVENUE_QUERY)
+        row = result.mappings().one()
+        return float(row["item_revenue"])
 
 
 def get_order_status_metrics():
@@ -64,16 +73,16 @@ def get_order_kpis():
         total_orders = int(row["total_orders"])
         active_orders = int(row["active_orders"])
         cancelled_orders = int(row["cancelled_orders"])
-        total_revenue = float(row["total_revenue"])
-
         cancellation_rate = (
             (cancelled_orders / total_orders) * 100
             if total_orders > 0
             else 0
         )
 
+        item_revenue = get_item_revenue()
+
         average_order_value = (
-            total_revenue / active_orders
+            item_revenue / active_orders
             if active_orders > 0
             else 0
         )
@@ -108,7 +117,7 @@ def get_product_performance():
 
 
 def get_overview():
-    total_revenue = get_total_revenue()
+    total_revenue = get_item_revenue()
     estimated_gross_profit = get_estimated_gross_profit()
     order_status = get_order_status_metrics()
     order_kpis = get_order_kpis()
