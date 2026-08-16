@@ -1,4 +1,4 @@
-import requests
+﻿import requests
 import streamlit as st
 import pandas as pd
 import altair as alt
@@ -12,7 +12,7 @@ API_BASE_URL = "http://127.0.0.1:8000"
 
 st.set_page_config(
     page_title="OpsPilot AI",
-    page_icon="⚡",
+    page_icon="âš¡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -204,7 +204,7 @@ with st.sidebar:
     st.markdown(
         """
         <div style="font-size:28px;font-weight:800;margin-bottom:4px;">
-            ⚡ OpsPilot
+            âš¡ OpsPilot
         </div>
         <div style="font-size:13px;color:#9ca3af !important;">
             AI Operations Intelligence
@@ -230,7 +230,7 @@ with st.sidebar:
 
     st.divider()
 
-    if st.button("🔄 Refresh Data", use_container_width=True):
+    if st.button("ðŸ”„ Refresh Data", use_container_width=True):
         st.cache_data.clear()
         st.rerun()
 
@@ -238,7 +238,7 @@ with st.sidebar:
         """
         <div style="margin-top:30px;font-size:12px;color:#9ca3af !important;">
             Backend<br>
-            <span style="color:#22c55e !important;">● Connected</span>
+            <span style="color:#22c55e !important;">â— Connected</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -531,13 +531,13 @@ if page == "Executive Dashboard":
         priority = insight["priority"].upper()
 
         if priority == "CRITICAL":
-            icon = "🔴"
+            icon = "ðŸ”´"
         elif priority == "HIGH":
-            icon = "🟠"
+            icon = "ðŸŸ "
         elif priority == "MEDIUM":
-            icon = "🟡"
+            icon = "ðŸŸ¡"
         else:
-            icon = "🟢"
+            icon = "ðŸŸ¢"
 
         st.markdown(
             f"""
@@ -545,7 +545,7 @@ if page == "Executive Dashboard":
                 <div class="insight-title">
                     {icon} {insight["title"]}
                 </div>
-                <div class="insight-message">
+                <div style="color:#cbd5e1 !important;font-size:14px;line-height:1.6;">
                     {insight["message"]}
                 </div>
             </div>
@@ -996,43 +996,204 @@ elif page == "Returns":
 
 
 # ============================================================
-# AI INSIGHTS
+# AI DECISION CENTER
 # ============================================================
 
 elif page == "AI Insights":
 
     st.markdown(
-        '<div class="section-title">AI Business Intelligence</div>',
+        '<div class="section-title">AI Decision Center</div>',
         unsafe_allow_html=True,
     )
 
-    for insight in intelligence["insights"]:
+    st.caption(
+        "Business priorities automatically generated from your operational data."
+    )
 
-        priority = insight["priority"].upper()
+    insights = intelligence["insights"]
 
-        if priority == "CRITICAL":
-            icon = "🔴"
-        elif priority == "HIGH":
-            icon = "🟠"
-        elif priority == "MEDIUM":
-            icon = "🟡"
+    critical_insights = [
+        x for x in insights
+        if x["priority"].lower() == "critical"
+    ]
+
+    high_insights = [
+        x for x in insights
+        if x["priority"].lower() == "high"
+    ]
+
+    medium_insights = [
+        x for x in insights
+        if x["priority"].lower() == "medium"
+    ]
+
+    positive_insights = [
+        x for x in insights
+        if x["type"].lower() == "positive"
+    ]
+
+    # ========================================================
+    # SUMMARY
+    # ========================================================
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric(
+        "Critical Actions",
+        len(critical_insights),
+    )
+
+    c2.metric(
+        "High Priority",
+        len(high_insights),
+    )
+
+    c3.metric(
+        "Warnings",
+        len(medium_insights),
+    )
+
+    c4.metric(
+        "Positive Signals",
+        len(positive_insights),
+    )
+
+    if critical_insights:
+        st.warning(
+            f"Immediate attention required: "
+            f"{len(critical_insights)} critical business issues detected."
+        )
+
+    # ========================================================
+    # HELPER
+    # ========================================================
+
+    def show_insight(insight):
+
+        priority = insight["priority"].lower()
+
+        title = insight["title"]
+        area = insight["area"]
+        message = insight["message"]
+
+        if priority == "critical":
+
+            st.error(
+                f"CRITICAL — {title}\n\n"
+                f"Area: {area}\n\n"
+                f"{message}"
+            )
+
+        elif priority == "high":
+
+            st.warning(
+                f"HIGH PRIORITY — {title}\n\n"
+                f"Area: {area}\n\n"
+                f"{message}"
+            )
+
+        elif priority == "medium":
+
+            st.info(
+                f"WARNING — {title}\n\n"
+                f"Area: {area}\n\n"
+                f"{message}"
+            )
+
         else:
-            icon = "🟢"
+
+            st.success(
+                f"POSITIVE — {title}\n\n"
+                f"Area: {area}\n\n"
+                f"{message}"
+            )
+
+    # ========================================================
+    # CRITICAL ACTIONS
+    # ========================================================
+
+    if critical_insights:
+
+        st.markdown("### Critical Actions")
+
+        for insight in critical_insights:
+            show_insight(insight)
+
+    # ========================================================
+    # HIGH PRIORITY
+    # ========================================================
+
+    if high_insights:
+
+        st.markdown("### High Priority")
+
+        for insight in high_insights:
+            show_insight(insight)
+
+    # ========================================================
+    # WARNINGS
+    # ========================================================
+
+    if medium_insights:
+
+        st.markdown("### Business Warnings")
+
+        for insight in medium_insights:
+            show_insight(insight)
+
+    # ========================================================
+    # POSITIVE
+    # ========================================================
+
+    if positive_insights:
+
+        st.markdown("### Positive Signals")
+
+        for insight in positive_insights:
+            show_insight(insight)
+
+    # ========================================================
+    # RECOMMENDED ACTIONS
+    # ========================================================
+
+    st.markdown("### Recommended Next Actions")
+
+    summary = intelligence["summary"]
+
+    actions = []
+
+    if summary["out_of_stock_products"] > 0:
+
+        actions.append(
+            f"Replenish {summary['out_of_stock_products']:,} "
+            "out-of-stock products immediately."
+        )
+
+    if summary["low_stock_products"] > 0:
+
+        actions.append(
+            f"Review {summary['low_stock_products']:,} "
+            "products below their reorder level."
+        )
+
+    if summary["sales_anomalies"] > 0:
+
+        actions.append(
+            f"Investigate {summary['sales_anomalies']:,} "
+            "detected sales anomalies."
+        )
+
+    if summary["total_returns"] > 0:
+
+        actions.append(
+            f"Review return drivers across "
+            f"{summary['total_returns']:,} returns."
+        )
+
+    for index, action in enumerate(actions, 1):
 
         st.markdown(
-            f"""
-            <div class="insight-card">
-                <div class="insight-title">
-                    {icon} {insight["title"]}
-                </div>
-                <div class="insight-message">
-                    <b>Area:</b> {insight["area"]}<br>
-                    <b>Priority:</b> {priority}<br><br>
-                    {insight["message"]}
-                </div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+            f"**{index}.** {action}"
         )
 
 
@@ -1101,7 +1262,7 @@ elif page == "Anomalies":
 st.markdown(
     """
     <div class="footer">
-        OpsPilot AI · Business Operations Intelligence Platform
+        OpsPilot AI Â· Business Operations Intelligence Platform
     </div>
     """,
     unsafe_allow_html=True,
