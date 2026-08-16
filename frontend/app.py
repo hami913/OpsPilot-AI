@@ -8,11 +8,11 @@ import altair as alt
 # CONFIG
 # ============================================================
 
-API_BASE_URL = "http://127.0.0.1:8000"
+API_BASE_URL = "http://127.0.0.1:8001"
 
 st.set_page_config(
     page_title="OpsPilot AI",
-    page_icon="âš¡",
+    page_icon="*",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -204,7 +204,7 @@ with st.sidebar:
     st.markdown(
         """
         <div style="font-size:28px;font-weight:800;margin-bottom:4px;">
-            âš¡ OpsPilot
+            [+] OpsPilot
         </div>
         <div style="font-size:13px;color:#9ca3af !important;">
             AI Operations Intelligence
@@ -238,7 +238,7 @@ with st.sidebar:
         """
         <div style="margin-top:30px;font-size:12px;color:#9ca3af !important;">
             Backend<br>
-            <span style="color:#22c55e !important;">â— Connected</span>
+            <span style="color:#22c55e !important;">[+] Connected</span>
         </div>
         """,
         unsafe_allow_html=True,
@@ -300,7 +300,7 @@ errors = [error for error in all_errors if error]
 if errors:
     st.error(
         "Unable to connect to one or more backend APIs. "
-        "Make sure FastAPI is running on http://127.0.0.1:8000."
+        "Make sure FastAPI is running on http://127.0.0.1:8001."
     )
 
     with st.expander("Technical details"):
@@ -1803,67 +1803,209 @@ elif page == "AI Insights":
 elif page == "Anomalies":
 
     st.markdown(
-        '<div class="section-title">Sales Anomaly Detection</div>',
+        '<div class="section-title">Sales Anomaly Intelligence</div>',
         unsafe_allow_html=True,
+    )
+
+    st.caption(
+        "AI-powered detection of unusual sales behavior, revenue movements, and demand changes."
     )
 
     anomaly_df = pd.DataFrame(anomalies)
 
-    st.metric(
-        "Detected Anomalies",
-        len(anomaly_df),
+    if anomaly_df.empty:
+        st.success("No significant sales anomalies detected.")
+        st.stop()
+
+    # --------------------------------------------------------
+    # SUMMARY
+    # --------------------------------------------------------
+
+    critical_count = int(
+        (anomaly_df["severity"] == "critical").sum()
     )
 
-    if not anomaly_df.empty:
+    high_count = int(
+        (anomaly_df["severity"] == "high").sum()
+    )
 
-        anomaly_chart = (
-            alt.Chart(anomaly_df)
-            .mark_circle(size=100)
-            .encode(
-                x=alt.X(
-                    "date:T",
-                    title="Date",
-                ),
-                y=alt.Y(
-                    "revenue:Q",
-                    title="Revenue",
-                ),
-                tooltip=[
-                    "date:T",
-                    "orders:Q",
-                    alt.Tooltip(
-                        "revenue:Q",
-                        format=",.2f",
-                    ),
-                    "anomaly",
-                ],
-            )
-            .properties(height=400)
-            .interactive()
+    medium_count = int(
+        (anomaly_df["severity"] == "medium").sum()
+    )
+
+    spike_count = int(
+        (anomaly_df["direction"] == "spike").sum()
+    )
+
+    drop_count = int(
+        (anomaly_df["direction"] == "drop").sum()
+    )
+
+    c1, c2, c3, c4 = st.columns(4)
+
+    c1.metric(
+        "Total Anomalies",
+        f"{len(anomaly_df):,}",
+    )
+
+    c2.metric(
+        "Critical / High",
+        f"{critical_count + high_count:,}",
+    )
+
+    c3.metric(
+        "Sales Spikes",
+        f"{spike_count:,}",
+    )
+
+    c4.metric(
+        "Sales Drops",
+        f"{drop_count:,}",
+    )
+
+    st.write("")
+
+    # --------------------------------------------------------
+    # ANOMALY TREND
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Anomaly Revenue Pattern</div>',
+        unsafe_allow_html=True,
+    )
+
+    chart_df = anomaly_df.copy()
+
+    chart_df["Date"] = pd.to_datetime(
+        chart_df["date"]
+    )
+
+    anomaly_chart = (
+        alt.Chart(chart_df)
+        .mark_circle(size=90)
+        .encode(
+            x=alt.X(
+                "Date:T",
+                title="Date",
+            ),
+            y=alt.Y(
+                "revenue:Q",
+                title="Revenue",
+            ),
+            size=alt.Size(
+                "anomaly_score:Q",
+                title="Anomaly Score",
+            ),
+            tooltip=[
+                "date",
+                "orders",
+                "revenue",
+                "anomaly_score",
+                "severity",
+                "direction",
+            ],
+        )
+        .properties(height=350)
+    )
+
+    st.altair_chart(
+        anomaly_chart,
+        use_container_width=True,
+    )
+
+    # --------------------------------------------------------
+    # FILTERS
+    # --------------------------------------------------------
+
+    st.markdown(
+        '<div class="section-title">Detected Events</div>',
+        unsafe_allow_html=True,
+    )
+
+    f1, f2 = st.columns(2)
+
+    with f1:
+        severity_filter = st.multiselect(
+            "Severity",
+            ["critical", "high", "medium"],
+            default=["critical", "high", "medium"],
         )
 
-        st.altair_chart(
-            anomaly_chart,
-            use_container_width=True,
+    with f2:
+        direction_filter = st.multiselect(
+            "Direction",
+            ["spike", "drop"],
+            default=["spike", "drop"],
         )
 
-        st.dataframe(
-            anomaly_df,
-            use_container_width=True,
-            hide_index=True,
+    filtered_df = anomaly_df[
+        anomaly_df["severity"].isin(severity_filter)
+        & anomaly_df["direction"].isin(direction_filter)
+    ].copy()
+
+    # --------------------------------------------------------
+    # EXPLANATIONS
+    # --------------------------------------------------------
+
+    for _, row in filtered_df.head(10).iterrows():
+
+        if row["severity"] == "critical":
+            box = st.error
+        elif row["severity"] == "high":
+            box = st.warning
+        else:
+            box = st.info
+
+        box(
+            f"{str(row['date'])} | "
+            f"{str(row['direction']).upper()} | "
+            f"{str(row['severity']).upper()}\n\n"
+            f"Revenue: ${row['revenue']:,.2f} | "
+            f"Orders: {int(row['orders']):,} | "
+            f"Anomaly Score: {row['anomaly_score']:.1f}\n\n"
+            f"Revenue deviation: {row['revenue_deviation_pct']:+.2f}% | "
+            f"Order deviation: {row['order_deviation_pct']:+.2f}%\n\n"
+            f"{row['reason']}\n\n"
+            f"Business impact: {row['business_impact']}"
         )
 
+    # --------------------------------------------------------
+    # FULL TABLE
+    # --------------------------------------------------------
 
-# ============================================================
-# FOOTER
-# ============================================================
+    display_df = filtered_df[
+        [
+            "date",
+            "orders",
+            "revenue",
+            "avg_order_value",
+            "anomaly_score",
+            "severity",
+            "direction",
+            "order_deviation_pct",
+            "revenue_deviation_pct",
+        ]
+    ].copy()
 
-st.markdown(
-    """
-    <div class="footer">
-        OpsPilot AI Â· Business Operations Intelligence Platform
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+    display_df.columns = [
+        "Date",
+        "Orders",
+        "Revenue",
+        "AOV",
+        "Anomaly Score",
+        "Severity",
+        "Direction",
+        "Order Deviation %",
+        "Revenue Deviation %",
+    ]
+
+    st.dataframe(
+        display_df,
+        use_container_width=True,
+        hide_index=True,
+    )
+
+
+
+
 
