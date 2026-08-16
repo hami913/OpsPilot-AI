@@ -65,3 +65,29 @@ TOP_PRODUCTS_QUERY = text("""
     ORDER BY revenue DESC
     LIMIT 10;
 """)
+
+
+ORDER_KPI_QUERY = text("""
+    SELECT
+        COUNT(*) AS total_orders,
+
+        COUNT(*) FILTER (
+            WHERE status != 'cancelled'
+        ) AS active_orders,
+
+        COUNT(*) FILTER (
+            WHERE status = 'cancelled'
+        ) AS cancelled_orders,
+
+        COALESCE(
+            ROUND(
+                SUM(total_amount) FILTER (
+                    WHERE status != 'cancelled'
+                ),
+                2
+            ),
+            0
+        ) AS total_revenue
+
+    FROM orders;
+""")
