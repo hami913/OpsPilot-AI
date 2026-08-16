@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+﻿from fastapi import FastAPI
+from app.analytics.metrics import get_overview
 
 app = FastAPI(
     title="OpsPilot AI",
@@ -21,3 +22,8 @@ def health_check():
     return {
         "status": "healthy"
     }
+
+
+@app.get("/analytics/overview")
+def analytics_overview():
+    return get_overview()
